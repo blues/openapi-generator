@@ -476,7 +476,12 @@ func (c *{{classname}}Controller) {{nickname}}(w http.ResponseWriter, r *http.Re
 	{{^items.isEnumRef}}
 	var {{paramName}}Param []string
 	if query.Has("{{baseName}}") {
-		{{paramName}}Param = strings.Split(query.Get("{{baseName}}"), ",")
+		{{#isExplode}}
+			{{paramName}}Param = query["{{baseName}}"]
+		{{/isExplode}}
+		{{^isExplode}}
+			{{paramName}}Param = strings.Split(query.Get("{{baseName}}"), ",")
+		{{/isExplode}}
 	}
 	{{/items.isEnumRef}}
 	{{#items.isEnumRef}}
@@ -591,6 +596,18 @@ func (c *{{classname}}Controller) {{nickname}}(w http.ResponseWriter, r *http.Re
 	{{paramName}}Param := r.Header.Get("{{baseName}}")
 	{{/isHeaderParam}}
 	{{#isBodyParam}}
+
+	{{#isString}}
+	var {{paramName}}Param string
+	if b, err := io.ReadAll(r.Body); err != nil {
+		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
+		return
+	} else {
+		{{paramName}}Param = string(b)
+	}
+	{{/isString}}
+
+	{{^isString}}
 	{{paramName}}Param := {{dataType}}{}
 	d := json.NewDecoder(r.Body)
 	{{^isAdditionalPropertiesTrue}}
@@ -600,6 +617,8 @@ func (c *{{classname}}Controller) {{nickname}}(w http.ResponseWriter, r *http.Re
 		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
 		return
 	}
+	{{/isString}}
+
 	{{#isArray}}
 		{{#items.isModel}}
 	for _, el := range {{paramName}}Param {
@@ -630,6 +649,29 @@ func (c *{{classname}}Controller) {{nickname}}(w http.ResponseWriter, r *http.Re
 		c.errorHandler(w, r, err, &result)
 		return
 	}
-	// If no error, encode the body and the result code
-	_ = EncodeJSONResponse(result.Body, &result.Code,{{#addResponseHeaders}} result.Headers,{{/addResponseHeaders}} w)
+
+	var body io.Reader
+
+	switch v := result.Body.(type) {
+	case io.Reader:
+		body = v
+	case string:
+		body = strings.NewReader(v)
+	case []byte:
+		body = bytes.NewReader(v)
+	default:
+		jsonBytes, err := json.Marshal(result.Body)
+		if err != nil {
+			c.errorHandler(w, r, err, &result)
+			return
+		}
+		body = bytes.NewReader(jsonBytes)
+		if result.Headers == nil {
+			result.Headers = map[string][]string{}
+		}
+		result.Headers["Content-Type"] = []string{"application/json; charset=UTF-8"}
+	}
+
+	_ = EncodeRawResponse(body, &result.Code, {{#addResponseHeaders}} result.Headers,{{/addResponseHeaders}} w)
+
 }{{/operation}}{{/operations}}

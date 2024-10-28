@@ -596,6 +596,18 @@ func (c *{{classname}}Controller) {{nickname}}(w http.ResponseWriter, r *http.Re
 	{{paramName}}Param := r.Header.Get("{{baseName}}")
 	{{/isHeaderParam}}
 	{{#isBodyParam}}
+
+	{{#isString}}
+	var {{paramName}}Param string
+	if b, err := io.ReadAll(r.Body); err != nil {
+		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
+		return
+	} else {
+		{{paramName}}Param = string(b)
+	}
+	{{/isString}}
+
+	{{^isString}}
 	{{paramName}}Param := {{dataType}}{}
 	d := json.NewDecoder(r.Body)
 	{{^isAdditionalPropertiesTrue}}
@@ -605,6 +617,8 @@ func (c *{{classname}}Controller) {{nickname}}(w http.ResponseWriter, r *http.Re
 		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
 		return
 	}
+	{{/isString}}
+
 	{{#isArray}}
 		{{#items.isModel}}
 	for _, el := range {{paramName}}Param {

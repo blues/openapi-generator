@@ -130,6 +130,37 @@ func EncodeJSONResponse(i interface{}, status *int,{{#addResponseHeaders}} heade
 	return nil
 }
 
+// EncodeRawResponse sends raw bytes to the http.ResponseWriter
+func EncodeRawResponse(i interface{}, status *int,{{#addResponseHeaders}} headers map[string][]string,{{/addResponseHeaders}} w http.ResponseWriter) error {
+	var body []byte
+	switch v := i.(type) {
+		case string:
+			body = []byte(v)
+		case []byte:
+			body = v
+		default:
+			return fmt.Errorf("invalid data type: %T", i)
+	}
+
+	wHeader := w.Header()
+	{{#addResponseHeaders}}
+	for key, values := range headers {
+		for _, value := range values {
+			wHeader.Add(key, value)
+		}
+	}
+	{{/addResponseHeaders}}
+
+	if status != nil {
+		w.WriteHeader(*status)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+
+	_, err := w.Write(body)
+	return err
+}
+
 // ReadFormFileToTempFile reads file data from a request form and writes it to a temporary file
 func ReadFormFileToTempFile(r *http.Request, key string) (*os.File, error) {
 	_, fileHeader, err := r.FormFile(key)

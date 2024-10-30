@@ -649,6 +649,23 @@ func (c *{{classname}}Controller) {{nickname}}(w http.ResponseWriter, r *http.Re
 		c.errorHandler(w, r, err, &result)
 		return
 	}
+
+	raw := false
+	for k,v := range result.Headers {
+		if strings.ToLower(k) == "content-type" {
+			for _, x := range v {
+				if strings.HasPrefix(x, "text/") {
+					raw = true
+				}
+			}
+		}
+	}
+
 	// If no error, encode the body and the result code
-	_ = EncodeJSONResponse(result.Body, &result.Code,{{#addResponseHeaders}} result.Headers,{{/addResponseHeaders}} w)
+	if raw {
+		_ = EncodeRawResponse(result.Body, &result.Code, {{#addResponseHeaders}} result.Headers,{{/addResponseHeaders}} w)
+	} else {
+		_ = EncodeJSONResponse(result.Body, &result.Code, {{#addResponseHeaders}} result.Headers,{{/addResponseHeaders}} w)
+	}
+
 }{{/operation}}{{/operations}}

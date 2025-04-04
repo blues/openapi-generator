@@ -650,22 +650,24 @@ func (c *{{classname}}Controller) {{nickname}}(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	raw := false
-	for k,v := range result.Headers {
-		if strings.ToLower(k) == "content-type" {
-			for _, x := range v {
-				if strings.HasPrefix(x, "text/") {
-					raw = true
-				}
-			}
+	var body io.Reader
+
+	switch v := result.Body.(type) {
+	case io.Reader:
+		body = v
+	case string:
+		body = strings.NewReader(v)
+	case []byte:
+		body = bytes.NewReader(v)
+	default:
+		jsonBytes, err := json.Marshal(result.Body)
+		if err != nil {
+			c.errorHandler(w, r, err, &result)
+			return
 		}
+		body = bytes.NewReader(jsonBytes)
 	}
 
-	// If no error, encode the body and the result code
-	if raw {
-		_ = EncodeRawResponse(result.Body, &result.Code, {{#addResponseHeaders}} result.Headers,{{/addResponseHeaders}} w)
-	} else {
-		_ = EncodeJSONResponse(result.Body, &result.Code, {{#addResponseHeaders}} result.Headers,{{/addResponseHeaders}} w)
-	}
+	_ = EncodeRawResponse(body, &result.Code, {{#addResponseHeaders}} result.Headers,{{/addResponseHeaders}} w)
 
 }{{/operation}}{{/operations}}

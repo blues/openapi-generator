@@ -27,6 +27,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"bytes"
 )
 
 // A Route defines the parameters for an api endpoint
@@ -131,17 +132,7 @@ func EncodeJSONResponse(i interface{}, status *int,{{#addResponseHeaders}} heade
 }
 
 // EncodeRawResponse sends raw bytes to the http.ResponseWriter
-func EncodeRawResponse(i interface{}, status *int,{{#addResponseHeaders}} headers map[string][]string,{{/addResponseHeaders}} w http.ResponseWriter) error {
-	var body []byte
-	switch v := i.(type) {
-		case string:
-			body = []byte(v)
-		case []byte:
-			body = v
-		default:
-			return fmt.Errorf("invalid data type: %T", i)
-	}
-
+func EncodeRawResponse(body io.Reader, status *int,{{#addResponseHeaders}} headers map[string][]string,{{/addResponseHeaders}} w http.ResponseWriter) error {
 	wHeader := w.Header()
 	{{#addResponseHeaders}}
 	for key, values := range headers {
@@ -157,7 +148,7 @@ func EncodeRawResponse(i interface{}, status *int,{{#addResponseHeaders}} header
 		w.WriteHeader(http.StatusOK)
 	}
 
-	_, err := w.Write(body)
+	_, err := io.Copy(w, body)
 	return err
 }
 

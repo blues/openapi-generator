@@ -522,6 +522,10 @@ func (c *APIClient) decode(v interface{}, b []byte, contentType string) (err err
 		*s = string(b)
 		return nil
 	}
+	if s, ok := v.(*io.ReadCloser); ok {
+		*s = io.NopCloser(bytes.NewReader(b))
+		return nil
+	}
 	if f, ok := v.(*os.File); ok {
 		f, err = os.CreateTemp("", "HttpClientFile")
 		if err != nil {

@@ -67,10 +67,21 @@ public class GoServerCodegenTest {
                 "type Routes map[string]Route");
 
         TestUtils.assertFileExists(Paths.get(output + "/go/api_dev.go"));
-        // verify /getPath/latest is first route
-        Assert.assertEquals(Files.readAllLines(Paths.get(output + "/go/api_dev.go")).get(52), "\t\t\"GetLatest\": Route{");
-        // verify /getPath/{id} is second route
-        Assert.assertEquals(Files.readAllLines(Paths.get(output + "/go/api_dev.go")).get(57), "\t\t\"GetById\": Route{");
+        // verify both routes exist and /getPath/latest comes before /getPath/{id}
+        List<String> lines = Files.readAllLines(Paths.get(output + "/go/api_dev.go"));
+        int getLatestLine = -1;
+        int getByIdLine = -1;
+        for (int i = 0; i < lines.size(); i++) {
+            if (lines.get(i).contains("\"GetLatest\": Route{")) {
+                getLatestLine = i;
+            }
+            if (lines.get(i).contains("\"GetById\": Route{")) {
+                getByIdLine = i;
+            }
+        }
+        Assert.assertTrue(getLatestLine >= 0, "GetLatest route not found");
+        Assert.assertTrue(getByIdLine >= 0, "GetById route not found");
+        Assert.assertTrue(getLatestLine < getByIdLine, "GetLatest should come before GetById");
 
     }
 

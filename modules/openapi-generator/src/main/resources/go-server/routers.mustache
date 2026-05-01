@@ -30,15 +30,27 @@ import (
 	"bytes"
 )
 
+// AuthMethod describes a security scheme and its required scopes for a route
+type AuthMethod struct {
+	Name   string
+	Scopes []string
+}
+
 // A Route defines the parameters for an api endpoint
 type Route struct {
-	Method	  string
-	Pattern	 string
-	HandlerFunc http.HandlerFunc
+	Method           string
+	Pattern          string
+	HandlerFunc      http.HandlerFunc
+	CustomAttributes map[string]string
+	AuthMethods      []AuthMethod
 }
 
 // Routes is a map of defined api endpoints
 type Routes map[string]Route
+
+// Authorizer is called before each route handler to perform authorization.
+// Return nil to allow the request, or a non-nil error to deny it.
+type Authorizer func(route Route, r *http.Request) error
 
 // Router defines the required methods for retrieving api routes
 type Router interface {
@@ -50,7 +62,7 @@ const errMsgMinValueConstraint = "provided parameter is not respecting minimum v
 const errMsgMaxValueConstraint = "provided parameter is not respecting maximum value constraint"
 
 // NewRouter creates a new router for any number of api routers
-func NewRouter(routers ...Router) {{#routers}}{{#mux}}*mux.Router{{/mux}}{{#chi}}chi.Router{{/chi}}{{/routers}} {
+func NewRouter(authorizer Authorizer, routers ...Router) {{#routers}}{{#mux}}*mux.Router{{/mux}}{{#chi}}chi.Router{{/chi}}{{/routers}} {
 {{#routers}}
 	{{#mux}}
 	router := mux.NewRouter().StrictSlash(true)
@@ -66,6 +78,16 @@ func NewRouter(routers ...Router) {{#routers}}{{#mux}}*mux.Router{{/mux}}{{#chi}
 	for _, api := range routers {
 		for {{#routers}}{{#mux}}name{{/mux}}{{#chi}}_{{/chi}}{{/routers}}, route := range api.Routes() {
 			var handler http.Handler = route.HandlerFunc
+			if authorizer != nil {
+				route := route // capture loop variable
+				handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if err := authorizer(route, r); err != nil {
+						http.Error(w, err.Error(), http.StatusForbidden)
+						return
+					}
+					route.HandlerFunc(w, r)
+				})
+			}
 {{#routers}}
 	{{#mux}}
 			handler = Logger(handler, name)

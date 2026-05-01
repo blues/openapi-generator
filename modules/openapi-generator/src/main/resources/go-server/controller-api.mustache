@@ -69,6 +69,19 @@ func (c *{{classname}}Controller) Routes() Routes {
 			strings.ToUpper("{{httpMethod}}"),
 			"{{{basePathWithoutHost}}}{{{path}}}",
 			c.{{operationId}},
+			map[string]string{
+				{{#vendorExtensions.x-custom-attributes-list}}
+				"{{key}}": "{{value}}",
+				{{/vendorExtensions.x-custom-attributes-list}}
+			},
+			[]AuthMethod{
+				{{#authMethods}}
+				{
+					"{{name}}",
+					[]string{ {{#scopes}}"{{scope}}", {{/scopes}} },
+				},
+				{{/authMethods}}
+			},
 		},
 	{{/operation}}
 {{/operations}}
@@ -462,7 +475,7 @@ func (c *{{classname}}Controller) {{nickname}}(w http.ResponseWriter, r *http.Re
 	}
 	{{/items.isInteger}}
 	{{#items.isDateTime}}
-	{{paramName}}Param, err := parseTimes(query.Get("{{baseName"}}))
+	{{paramName}}Param, err := parseTimes(query.Get("{{baseName}}"))
 	if err != nil {
 		c.errorHandler(w, r, &ParsingError{Param: "{{baseName}}", Err: err}, nil)
 		return

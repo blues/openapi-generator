@@ -335,6 +335,19 @@ public class GoServerCodegen extends AbstractGoCodegen {
         for (CodegenOperation operation : operations) {
             // http method verb conversion (e.g. PUT => Put)
             operation.httpMethod = camelize(operation.httpMethod.toLowerCase(Locale.ROOT));
+
+            // Convert x-custom-attributes map into a list of {key, value} entries for mustache iteration
+            Object customAttrs = operation.vendorExtensions.get("x-custom-attributes");
+            if (customAttrs instanceof Map) {
+                List<Map<String, String>> attrList = new ArrayList<>();
+                for (Map.Entry<?, ?> entry : ((Map<?, ?>) customAttrs).entrySet()) {
+                    Map<String, String> attr = new HashMap<>();
+                    attr.put("key", String.valueOf(entry.getKey()));
+                    attr.put("value", String.valueOf(entry.getValue()));
+                    attrList.add(attr);
+                }
+                operation.vendorExtensions.put("x-custom-attributes-list", attrList);
+            }
         }
 
         // remove model imports to avoid error
